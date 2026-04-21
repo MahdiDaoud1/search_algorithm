@@ -1,0 +1,14 @@
+-merge the the tables 'vis' and 'cells'
+
+-remove extra conditions from clear 
+void grid_clear_search(Grid *g) {
+    for (int r = 0; r < ROWS; r++)
+        for (int c = 0; c < COLS; c++)
+            if (g->vis[r][c] > STATE_OPEN)
+                g->vis[r][c] = STATE_OPEN;
+
+    if (g->startR >= 0) g->vis[g->startR][g->startC] = STATE_START;
+    if (g->endR   >= 0) g->vis[g->endR  ][g->endC  ] = STATE_END;
+}
+
+-remove the rng function and replace it with rand
