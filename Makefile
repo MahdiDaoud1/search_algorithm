@@ -1,19 +1,10 @@
 CC      = gcc
-CFLAGS  = -std=c11 -O2 -Wall -Wextra -Iinclude
-LDFLAGS = -lraylib -lm
+CFLAGS  = -std=c11 -O2 -Wall -Wextra -Iinclude -D_POSIX_C_SOURCE=199309L
+LDFLAGS = -lraylib -lopengl32 -lgdi32 -lwinmm -lm
 
-# Platform detection
-UNAME := $(shell uname -s)
-ifeq ($(UNAME), Linux)
-    LDFLAGS += -lGL -lpthread -ldl -lrt -lX11
-endif
-ifeq ($(UNAME), Darwin)
-    LDFLAGS += -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
-endif
-
-SRC = src/main.c src/grid.c src/generators.c src/search.c src/render.c src/ui.c
+SRC = src/main.c src/grid.c src/generators.c src/traps.c src/search.c src/render.c src/ui.c
 OBJ = $(SRC:.c=.o)
-TARGET = maze_search
+TARGET = maze_search.exe
 
 all: $(TARGET)
 

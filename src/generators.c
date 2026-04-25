@@ -1,233 +1,196 @@
 #include "maze.h"
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
-/* ── helpers ──────────────────────────────────────────────────────────────── */
-static unsigned int rng_state;
-static unsigned int rng() {
-    rng_state ^= rng_state << 13;
-    rng_state ^= rng_state >> 17;
-    rng_state ^= rng_state << 5;
-    return rng_state;
-}
-
-static void shuffle_dirs(int dirs[4]) {
+// ── helpers ───────────────────────────────────────────────────────────────────
+static void shuffle4(int d[4]) {
     for (int i = 3; i > 0; i--) {
-        int j = rng() % (i + 1);
-        int tmp = dirs[i]; dirs[i] = dirs[j]; dirs[j] = tmp;
+        int j = rand() % (i+1);
+        int t = d[i]; d[i] = d[j]; d[j] = t;
     }
 }
 
-// carve between two cells (r1,c1) and (r2,c2) — also opens the wall between
+// open the two rooms AND the wall cell between them
 static void carve(Grid *g, int r1, int c1, int r2, int c2) {
-    g->cells[r1][c1] = OPEN;
-    g->cells[(r1+r2)/2][(c1+c2)/2] = OPEN;
-    g->cells[r2][c2] = OPEN;
-    g->vis[r1][c1] = STATE_OPEN;
-    g->vis[(r1+r2)/2][(c1+c2)/2] = STATE_OPEN;
-    g->vis[r2][c2] = STATE_OPEN;
+    g->cells[r1][c1]                = CELL_OPEN;
+    g->cells[(r1+r2)/2][(c1+c2)/2] = CELL_OPEN;
+    g->cells[r2][c2]                = CELL_OPEN;
 }
 
-//Recursive Backtracker (DFS) 
-static void rb_visit(Grid *g, int r, int c) {
-    int dr[] = {-2,  2,  0,  0};
-    int dc[] = { 0,  0, -2,  2};
-    int dirs[4] = {0,1,2,3};
-    shuffle_dirs(dirs);
+static bool is_wall(const Grid *g, int r, int c) {
+    return g->cells[r][c] == CELL_WALL;
+}
+
+// ── 1. Recursive Backtracker ──────────────────────────────────────────────────
+static void rb_dfs(Grid *g, int r, int c) {
+    int dr[] = {-2, 2,  0,  0};
+    int dc[] = { 0, 0, -2,  2};
+    int d[4] = {0,1,2,3};
+    shuffle4(d);
     for (int i = 0; i < 4; i++) {
-        int nr = r + dr[dirs[i]];
-        int nc = c + dc[dirs[i]];
-        if (nr > 0 && nr < ROWS-1 && nc > 0 && nc < COLS-1
-                && g->cells[nr][nc] == WALL) {
+        int nr = r+dr[d[i]], nc = c+dc[d[i]];
+        if (nr>0 && nr<ROWS-1 && nc>0 && nc<COLS-1 && is_wall(g,nr,nc)) {
             carve(g, r, c, nr, nc);
-            rb_visit(g, nr, nc);
+            rb_dfs(g, nr, nc);
         }
     }
 }
 
-void gen_recursive_backtrack(Grid *g, unsigned int seed) {
-    rng_state = seed ? seed : (unsigned int)time(NULL);
+void gen_recursive_backtrack(Grid *g) {
     grid_init(g);
-    rb_visit(g, 1, 1);
+    rb_dfs(g, 1, 1);
 }
 
-/* ── 2. Prim's (randomised) ──────────────────────────────────────────────── */
-#define MAX_FRONTIER (ROWS * COLS)
+// ── 2. Prim's ─────────────────────────────────────────────────────────────────
 typedef struct { int r, c; } Cell;
+#define MAX_F (ROWS*COLS)
 
-void gen_prims(Grid *g, unsigned int seed) {
-    rng_state = seed ? seed : (unsigned int)time(NULL);
+void gen_prims(Grid *g) {
     grid_init(g);
+    Cell *front = malloc(MAX_F * sizeof(Cell));
+    int  fs = 0;
+    int  dr[] = {-2,2,0,0}, dc[] = {0,0,-2,2};
 
-    Cell *frontier = malloc(MAX_FRONTIER * sizeof(Cell));
-    int   fsize = 0;
+    g->cells[1][1] = CELL_OPEN;
+#define ADDF(rr,cc) \
+    if((rr)>0&&(rr)<ROWS-1&&(cc)>0&&(cc)<COLS-1&&is_wall(g,(rr),(cc))) \
+        front[fs++]=(Cell){(rr),(cc)};
+    ADDF(1,3) ADDF(3,1)
 
-    // start at (1,1)
-    g->cells[1][1] = OPEN;
-    g->vis[1][1]   = STATE_OPEN;
+    while (fs > 0) {
+        int idx  = rand() % fs;
+        Cell cur = front[idx];
+        front[idx] = front[--fs];
+        if (!is_wall(g, cur.r, cur.c)) continue;
 
-    int dr[] = {-2, 2, 0, 0};
-    int dc[] = {0, 0, -2, 2};
-
-#define ADD_FRONTIER(rr,cc) \
-    if ((rr)>0&&(rr)<ROWS-1&&(cc)>0&&(cc)<COLS-1&&g->cells[(rr)][(cc)]==WALL)\
-        frontier[fsize++] = (Cell){(rr),(cc)};
-
-    ADD_FRONTIER(1,3) ADD_FRONTIER(3,1)
-
-    while (fsize > 0) {
-        int idx = rng() % fsize;
-        Cell cur = frontier[idx];
-        frontier[idx] = frontier[--fsize];
-
-        if (g->cells[cur.r][cur.c] == OPEN) continue;
-
-        // collect open neighbours
-        Cell nbrs[4]; int nn = 0;
-        for (int d = 0; d < 4; d++) {
-            int nr = cur.r + dr[d], nc = cur.c + dc[d];
-            if (nr>0&&nr<ROWS-1&&nc>0&&nc<COLS-1&&g->cells[nr][nc]==OPEN)
-                nbrs[nn++] = (Cell){nr,nc};
+        Cell nb[4]; int nn=0;
+        for (int d=0;d<4;d++) {
+            int nr=cur.r+dr[d], nc=cur.c+dc[d];
+            if (nr>0&&nr<ROWS-1&&nc>0&&nc<COLS-1&&!is_wall(g,nr,nc))
+                nb[nn++]=(Cell){nr,nc};
         }
-        if (nn == 0) continue;
-        Cell chosen = nbrs[rng() % nn];
-        carve(g, cur.r, cur.c, chosen.r, chosen.c);
-
-        for (int d = 0; d < 4; d++) {
-            ADD_FRONTIER(cur.r+dr[d], cur.c+dc[d])
-        }
+        if (!nn) continue;
+        Cell ch = nb[rand()%nn];
+        carve(g, cur.r, cur.c, ch.r, ch.c);
+        for (int d=0;d<4;d++) { ADDF(cur.r+dr[d], cur.c+dc[d]) }
     }
-    free(frontier);
+    free(front);
 }
 
-/* ── 3. Kruskal's (randomised) ───────────────────────────────────────────── */
-static int parent[ROWS*COLS];
-static int find(int x) { return parent[x]==x ? x : (parent[x]=find(parent[x])); }
-static void unite(int a, int b) { parent[find(a)] = find(b); }
+// ── 3. Kruskal's ──────────────────────────────────────────────────────────────
+static int uf[ROWS*COLS];
+static int uf_find(int x){ return uf[x]==x?x:(uf[x]=uf_find(uf[x])); }
+static void uf_union(int a,int b){ uf[uf_find(a)]=uf_find(b); }
 
-void gen_kruskals(Grid *g, unsigned int seed) {
-    rng_state = seed ? seed : (unsigned int)time(NULL);
+void gen_kruskals(Grid *g) {
     grid_init(g);
-
-    // open all odd cells
-    for (int r = 1; r < ROWS; r+=2)
-        for (int c = 1; c < COLS; c+=2) {
-            g->cells[r][c] = OPEN;
-            g->vis[r][c]   = STATE_OPEN;
-            parent[r*COLS+c] = r*COLS+c;
-        }
-
-    // collect all walls between odd cells
-    typedef struct { int r1,c1,r2,c2; } Wall;
-    Wall *walls = malloc(2*ROWS*COLS*sizeof(Wall));
-    int wcount = 0;
-    for (int r = 1; r < ROWS; r+=2)
-        for (int c = 1; c < COLS; c+=2) {
-            if (r+2 < ROWS) walls[wcount++] = (Wall){r,c,r+2,c};
-            if (c+2 < COLS) walls[wcount++] = (Wall){r,c,r,c+2};
-        }
-
-    // shuffle walls
-    for (int i = wcount-1; i > 0; i--) {
-        int j = rng() % (i+1);
-        Wall tmp = walls[i]; walls[i] = walls[j]; walls[j] = tmp;
+    for (int r=1;r<ROWS;r+=2) for (int c=1;c<COLS;c+=2) {
+        g->cells[r][c]=CELL_OPEN; uf[r*COLS+c]=r*COLS+c;
     }
-
-    for (int i = 0; i < wcount; i++) {
-        Wall w = walls[i];
-        if (find(w.r1*COLS+w.c1) != find(w.r2*COLS+w.c2)) {
-            unite(w.r1*COLS+w.c1, w.r2*COLS+w.c2);
-            carve(g, w.r1, w.c1, w.r2, w.c2);
+    typedef struct{int r1,c1,r2,c2;}Wall;
+    Wall *walls = malloc(2*ROWS*COLS*sizeof(Wall));
+    int wn=0;
+    for (int r=1;r<ROWS;r+=2) for (int c=1;c<COLS;c+=2) {
+        if (r+2<ROWS) walls[wn++]=(Wall){r,c,r+2,c};
+        if (c+2<COLS) walls[wn++]=(Wall){r,c,r,c+2};
+    }
+    for (int i=wn-1;i>0;i--){ int j=rand()%(i+1); Wall t=walls[i];walls[i]=walls[j];walls[j]=t; }
+    for (int i=0;i<wn;i++) {
+        Wall w=walls[i];
+        if (uf_find(w.r1*COLS+w.c1)!=uf_find(w.r2*COLS+w.c2)) {
+            uf_union(w.r1*COLS+w.c1, w.r2*COLS+w.c2);
+            carve(g, w.r1,w.c1,w.r2,w.c2);
         }
     }
     free(walls);
 }
 
-/* ── 4. Aldous-Broder ────────────────────────────────────────────────────── */
-void gen_aldous_broder(Grid *g, unsigned int seed) {
-    rng_state = seed ? seed : (unsigned int)time(NULL);
+// ── 4. Aldous-Broder ──────────────────────────────────────────────────────────
+void gen_aldous_broder(Grid *g) {
     grid_init(g);
-
-    int total = ((ROWS-1)/2) * ((COLS-1)/2);
-    int visited = 1;
-    int r = 1, c = 1;
-    g->cells[r][c] = OPEN;
-    g->vis[r][c]   = STATE_OPEN;
-
-    int dr[] = {-2,2,0,0};
-    int dc[] = {0,0,-2,2};
-
-    while (visited < total) {
-        int d = rng() % 4;
-        int nr = r+dr[d], nc = c+dc[d];
+    int total = ((ROWS-1)/2)*((COLS-1)/2);
+    int visited=1, r=1, c=1;
+    g->cells[r][c]=CELL_OPEN;
+    int dr[]={-2,2,0,0}, dc[]={0,0,-2,2};
+    while (visited<total) {
+        int d=rand()%4, nr=r+dr[d], nc=c+dc[d];
         if (nr<=0||nr>=ROWS-1||nc<=0||nc>=COLS-1) continue;
-        if (g->cells[nr][nc] == WALL) {
-            carve(g, r, c, nr, nc);
-            visited++;
-        }
-        r = nr; c = nc;
+        if (is_wall(g,nr,nc)) { carve(g,r,c,nr,nc); visited++; }
+        r=nr; c=nc;
     }
 }
 
-/* ── 5. Braided maze (cyclic — multiple correct paths) ───────────────────────
- *
- *  Strategy:
- *   a) Build a perfect maze first (Recursive Backtracker → unique-path tree).
- *   b) Collect every wall that still separates two OPEN cells.
- *   c) Randomly remove ~40 % of those walls.
- *
- *  This punches "shortcuts" (back-edges) into the spanning tree, creating
- *  cycles so that almost any two cells are connected by several distinct
- *  routes.  The more walls removed, the more open and loopy the maze becomes.
- * ──────────────────────────────────────────────────────────────────────────── */
-#define BRAID_RATIO 0.40f   /* fraction of extra walls to remove (0–1) */
+// ── 5. Braided (Prim's base + extra walls removed for cycles) ─────────────────
+#define BRAID_RATIO 0.42f
 
-void gen_braided(Grid *g, unsigned int seed) {
-    /* ── step 1 : perfect maze via recursive backtracker ── */
-    rng_state = seed ? seed : (unsigned int)time(NULL);
-    gen_recursive_backtrack(g, rng_state);   /* re-uses our rng_state */
+void gen_braided(Grid *g) {
+    gen_prims(g);
+    typedef struct{int r,c;}WP;
+    WP *cands = malloc(ROWS*COLS*sizeof(WP));
+    int nc=0;
+    for (int r=1;r<ROWS-1;r++) for (int c=1;c<COLS-1;c++) {
+        if (g->cells[r][c]!=CELL_WALL) continue;
+        int h=(g->cells[r][c-1]!=CELL_WALL && g->cells[r][c+1]!=CELL_WALL);
+        int v=(g->cells[r-1][c]!=CELL_WALL && g->cells[r+1][c]!=CELL_WALL);
+        if (h||v) cands[nc++]=(WP){r,c};
+    }
+    for (int i=nc-1;i>0;i--){ int j=rand()%(i+1); WP t=cands[i];cands[i]=cands[j];cands[j]=t; }
+    int rm=(int)(nc*BRAID_RATIO);
+    for (int i=0;i<rm;i++) g->cells[cands[i].r][cands[i].c]=CELL_OPEN;
+    free(cands);
+}
 
-    /* ── step 2 : collect all walls that divide two open cells ──
-     *
-     *  A "removable" wall is any cell that is currently WALL and has
-     *  exactly two OPEN neighbours on opposite sides (horizontal pair
-     *  or vertical pair).  Removing it merges two corridors.
-     *
-     *  We scan every interior cell.  Walls on the border (row 0, ROWS-1,
-     *  col 0, COLS-1) are never touched so the outer boundary stays solid.
-     */
-    typedef struct { int r, c; } WPos;
-    WPos *candidates = malloc(ROWS * COLS * sizeof(WPos));
-    int   ncand = 0;
+// ── 6. Wilson's algorithm (loop-erased random walk) ───────────────────────────
+// Produces a UNIFORM spanning tree — every possible perfect maze equally likely.
+// Better texture than Aldous-Broder with similar fairness, and much faster.
+void gen_wilsons(Grid *g) {
+    grid_init(g);
+    int total = ((ROWS-1)/2)*((COLS-1)/2);
 
-    for (int r = 1; r < ROWS - 1; r++) {
-        for (int c = 1; c < COLS - 1; c++) {
-            if (g->cells[r][c] != WALL) continue;
+    // track which ODD-indexed rooms have been added to the maze
+    bool in_maze[ROWS][COLS];
+    memset(in_maze, 0, sizeof(in_maze));
 
-            /* horizontal pair: left and right neighbours both open */
-            int horiz = (g->cells[r][c-1] == OPEN && g->cells[r][c+1] == OPEN);
-            /* vertical pair: top and bottom neighbours both open */
-            int vert  = (g->cells[r-1][c] == OPEN && g->cells[r+1][c] == OPEN);
+    // track direction we came from during a walk (for loop erasure)
+    // 0=up 1=down 2=left 3=right, -1=unset
+    int walk_dir[ROWS][COLS];
 
-            if (horiz || vert)
-                candidates[ncand++] = (WPos){r, c};
+    int dr[]={-2,2,0,0}, dc[]={0,0,-2,2};
+
+    // seed: add (1,1) to maze
+    g->cells[1][1]=CELL_OPEN;
+    in_maze[1][1]=true;
+    int done=1;
+
+    while (done < total) {
+        // pick a random unvisited room as walk start
+        int sr, sc;
+        do {
+            sr = 1 + 2*(rand()%((ROWS-1)/2));
+            sc = 1 + 2*(rand()%((COLS-1)/2));
+        } while (in_maze[sr][sc]);
+
+        // perform a loop-erased random walk until we hit the maze
+        memset(walk_dir, -1, sizeof(walk_dir));
+        int r=sr, c=sc;
+
+        while (!in_maze[r][c]) {
+            int d=rand()%4;
+            int nr=r+dr[d], nc2=c+dc[d];
+            if (nr<=0||nr>=ROWS-1||nc2<=0||nc2>=COLS-1) continue;
+            walk_dir[r][c]=d;
+            r=nr; c=nc2;
+        }
+
+        // carve the recorded path from start to maze
+        r=sr; c=sc;
+        while (!in_maze[r][c]) {
+            int d=walk_dir[r][c];
+            int nr=r+dr[d], nc2=c+dc[d];
+            carve(g, r, c, nr, nc2);
+            in_maze[r][c]=true;
+            done++;
+            r=nr; c=nc2;
         }
     }
-
-    /* ── step 3 : shuffle candidates then remove the first BRAID_RATIO of them ── */
-    for (int i = ncand - 1; i > 0; i--) {
-        int j = rng() % (i + 1);
-        WPos tmp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = tmp;
-    }
-
-    int to_remove = (int)(ncand * BRAID_RATIO);
-    for (int i = 0; i < to_remove; i++) {
-        int r = candidates[i].r;
-        int c = candidates[i].c;
-        g->cells[r][c] = OPEN;
-        g->vis[r][c]   = STATE_OPEN;
-    }
-
-    free(candidates);
 }
