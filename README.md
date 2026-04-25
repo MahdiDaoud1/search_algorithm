@@ -19,7 +19,7 @@ A real-time maze visualizer and research tool that compares four pathfinding alg
 | `5` | Braided ★             | **Cyclic** | **Multiple valid paths** — best for comparison |
 | `6` | Wilson's              | Perfect    | Loop-erased random walk, varied texture        |
 
-> ★ **Use Braided for research** — it's the only generator with multiple paths between points, forcing algorithms to make real routing decisions around traps.
+> ★ **Used Braided for research** — it's the only generator with multiple paths between points, forcing algorithms to make real routing decisions around traps.
 
 ### 🔍 Search Algorithms (4 algorithms)
 
