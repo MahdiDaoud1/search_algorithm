@@ -52,10 +52,11 @@ int main(void) {
         if (IsKeyPressed(KEY_SIX))   g_gen=GEN_WILSONS;
 
         if (g_phase!=PHASE_SEARCHING) {
-            if (IsKeyPressed(KEY_Q)) g_algo=ALGO_BFS;
-            if (IsKeyPressed(KEY_W)) g_algo=ALGO_DFS;
-            if (IsKeyPressed(KEY_E)) g_algo=ALGO_DIJKSTRA;
-            if (IsKeyPressed(KEY_R)) g_algo=ALGO_ASTAR;
+            if (IsKeyPressed(KEY_Q)) g_algo=ALGO_BFS;          // AZERTY: A key
+            if (IsKeyPressed(KEY_W)) g_algo=ALGO_DFS;          // AZERTY: Z key
+            if (IsKeyPressed(KEY_E)) g_algo=ALGO_DIJKSTRA;     // AZERTY: E key
+            if (IsKeyPressed(KEY_R)) g_algo=ALGO_ASTAR;        // AZERTY: R key
+            if (IsKeyPressed(KEY_T)) g_algo=ALGO_BIDIR_DIJKSTRA; // AZERTY: T key
         }
         if (IsKeyPressed(KEY_G)) do_generate();
         if (IsKeyPressed(KEY_S)) {
@@ -63,11 +64,11 @@ int main(void) {
                (g_phase==PHASE_PICK_START&&g_grid.startR>=0&&g_grid.endR>=0))
                 do_start_search();
         }
-        if (IsKeyPressed(KEY_X))
+        if (IsKeyPressed(KEY_X))                               // AZERTY: X key (same)
             if (g_phase==PHASE_SEARCHING||g_phase==PHASE_DONE)
                 do_reset_search();
 
-        // Z = full reset — same maze, same traps, bomb craters undone, start/end cleared
+        // Full reset — KEY_Z is the physical Z key = labeled W on AZERTY
         if (IsKeyPressed(KEY_Z) && g_phase!=PHASE_MENU && g_phase!=PHASE_SEARCHING)
             do_full_reset();
 
@@ -207,8 +208,8 @@ static void draw_menu_overlay(void) {
 
     y+=6;
     DrawText("Search Algorithm:",gw/2-205,y,13,CLITERAL(Color){200,210,230,255}); y+=20;
-    const char *an[]={"Q-BFS","W-DFS","E-Dijkstra","R-A*"};
-    for(int i=0;i<4;i++){if(button(gw/2-205,y,210,24,an[i],g_algo==(SearchAlgo)i))g_algo=(SearchAlgo)i;y+=28;}
+    const char *an[]={"A-BFS","Z-DFS","E-Dijkstra","R-A*","T-BiDir Dijkstra"};
+    for(int i=0;i<5;i++){if(button(gw/2-205,y,210,24,an[i],g_algo==(SearchAlgo)i))g_algo=(SearchAlgo)i;y+=28;}
 
     y+=12;
     if(button(gw/2-105,y,210,36,"GENERATE MAZE  [G]",false)) do_generate();

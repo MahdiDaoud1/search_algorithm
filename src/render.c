@@ -170,7 +170,7 @@ void render_sidebar(AppPhase phase, GenAlgo gen, SearchAlgo algo,
 
     const char *gn[]={"Rec. Backtracker","Prim's","Kruskal's",
                       "Aldous-Broder","Braided (multi-path)","Wilson's"};
-    const char *an[]={"BFS","DFS","Dijkstra","A*"};
+    const char *an[]={"BFS","DFS","Dijkstra","A*","BiDir Dijkstra"};
     DrawTextEx(GetFontDefault(),"Generator",(Vector2){x,y},12,1,C_DIM); y+=14;
     DrawTextEx(GetFontDefault(),gn[gen],(Vector2){x,y},15,1,C_TEXT); y+=20;
     DrawTextEx(GetFontDefault(),"Algorithm",(Vector2){x,y},12,1,C_DIM); y+=14;
@@ -196,6 +196,7 @@ void render_sidebar(AppPhase phase, GenAlgo gen, SearchAlgo algo,
             int tw=MeasureText(buf,16);
             DrawText(buf,sx+sw/2-tw/2,y+6,16,C_ACCENT);
             y+=34;
+            DrawTextEx(GetFontDefault(),"path×5 + pen×3 − bon×2 + time×0.5",(Vector2){x,y},10,1,C_DIM); y+=14;
             DrawTextEx(GetFontDefault(),"(lower = better)",(Vector2){x,y},10,1,C_DIM); y+=14;
             DrawTextEx(GetFontDefault(),"[TAB] Full report",(Vector2){x,y},11,1,C_ACCENT); y+=16;
         }
@@ -237,8 +238,8 @@ void render_sidebar(AppPhase phase, GenAlgo gen, SearchAlgo algo,
     divl(x,y,iw); y+=8;
     DrawTextEx(GetFontDefault(),"Controls",(Vector2){x,y},13,1,C_ACCENT); y+=14;
     const char *hints[]={"[G] Generate","[1-6] Generator",
-        "[Q/W/E/R] Algorithm","[S] Search",
-        "[X] Reset search","[Z] Full reset (same maze)",
+        "[A/Z/E/R/T] Algorithm","[S] Search",
+        "[X] Reset search","[W] Full reset (same maze)",
         "[TAB/H] Report","[ESC] Menu"};
     for(int i=0;i<8;i++){
         DrawTextEx(GetFontDefault(),hints[i],(Vector2){x,y},11,1,C_DIM); y+=13;
@@ -254,7 +255,7 @@ void render_topbar(AppPhase phase) {
         case PHASE_PICK_START: msg="Click to place START"; break;
         case PHASE_PICK_END:   msg="Click to place TREASURE (end)  |  [S] to search"; break;
         case PHASE_SEARCHING:  msg="Searching...  [X] to reset"; break;
-        case PHASE_DONE:       msg="Done!  [TAB] report  |  [S] search again  |  [Z] full reset  |  [G] new maze"; break;
+        case PHASE_DONE:       msg="Done!  [TAB] report  |  [S] search again  |  [W] full reset  |  [G] new maze"; break;
     }
     int tw=MeasureText(msg,13);
     DrawText(msg,(COLS*CELL_SIZE-tw)/2,18,13,C_TEXT);
@@ -301,7 +302,7 @@ void render_report_popup(const SearchResult *res, SearchAlgo algo, bool *show) {
     DrawRectangleLinesEx((Rectangle){px+4,py+4,pw-8,ph-8},1,
                          CLITERAL(Color){60,80,120,120});
 
-    const char *an[]={"BFS","DFS","Dijkstra","A*"};
+    const char *an[]={"BFS","DFS","Dijkstra","A*","BiDir Dijkstra"};
     char title[64];
     snprintf(title,sizeof title,"Search Report — %s", an[algo]);
     int tw=MeasureText(title,20);
@@ -413,10 +414,16 @@ void render_report_popup(const SearchResult *res, SearchAlgo algo, bool *show) {
     DrawTextEx(GetFontDefault(),buf,(Vector2){x,y},13,1,
                res->bonuses>0?C_GOOD:C_TEXT); y+=16;
 
+    snprintf(buf,sizeof buf,"Time         %.2f ms  ×  0.5  =  +%d",
+             res->timeMs, (int)(res->timeMs*0.5));
+    DrawTextEx(GetFontDefault(),buf,(Vector2){x,y},13,1,C_TEXT); y+=16;
+
     DrawLine(x,y,x+rw,y,C_DIV); y+=8;
 
-    snprintf(buf,sizeof buf,"%d + %d - %d  =  %d",
-             res->pathLen*5, res->penalties*3, res->bonuses*2, res->final_score);
+    snprintf(buf,sizeof buf,"%d + %d - %d + %d  =  %d",
+             res->pathLen*5, res->penalties*3,
+             res->bonuses*2, (int)(res->timeMs*0.5),
+             res->final_score);
     DrawTextEx(GetFontDefault(),buf,(Vector2){x,y},13,1,C_DIM); y+=18;
 
     // final score big display

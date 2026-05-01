@@ -55,6 +55,7 @@ typedef enum {
     ALGO_DFS,
     ALGO_DIJKSTRA,
     ALGO_ASTAR,
+    ALGO_BIDIR_DIJKSTRA,
     ALGO_COUNT
 } SearchAlgo;
 
@@ -79,7 +80,7 @@ typedef enum {
 } AppPhase;
 
 // ─── Grid ─────────────────────────────────────────────────────────────────────
-#define MAX_CRATERS 16   // max bombs that can fire in one search run
+#define MAX_CRATERS 30   // 3 bombs × up to 8 walls each = 24 max, 30 is safe margin
 
 typedef struct { int r, c; } CraterPos;
 

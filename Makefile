@@ -1,5 +1,5 @@
 CC      = gcc
-CFLAGS  = -std=c11 -O2 -Wall -Wextra -Iinclude -D_POSIX_C_SOURCE=199309L
+CFLAGS  = -std=c11 -O2 -Wall -Wextra -Iinclude
 LDFLAGS = -lraylib -lopengl32 -lgdi32 -lwinmm -lm
 
 SRC = src/main.c src/grid.c src/generators.c src/traps.c src/search.c src/render.c src/ui.c
