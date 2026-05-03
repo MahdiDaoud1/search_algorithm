@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+
 static void shuffle4(int d[4]) {
     for (int i = 3; i > 0; i--) {
         int j = rand() % (i+1);
@@ -21,7 +21,7 @@ static bool is_wall(const Grid *g, int r, int c) {
     return g->cells[r][c] == CELL_WALL;
 }
 
-// ── 1. Recursive Backtracker ──────────────────────────────────────────────────
+// 1. Recursive Backtracker
 static void rb_dfs(Grid *g, int r, int c) {
     int dr[] = {-2, 2,  0,  0};
     int dc[] = { 0, 0, -2,  2};
@@ -41,7 +41,7 @@ void gen_recursive_backtrack(Grid *g) {
     rb_dfs(g, 1, 1);
 }
 
-// ── 2. Prim's ─────────────────────────────────────────────────────────────────
+// 2. Prim's 
 typedef struct { int r, c; } Cell;
 #define MAX_F (ROWS*COLS)
 
@@ -77,7 +77,7 @@ void gen_prims(Grid *g) {
     free(front);
 }
 
-// ── 3. Kruskal's ──────────────────────────────────────────────────────────────
+// 3. Kruskal's 
 static int uf[ROWS*COLS];
 static int uf_find(int x){ return uf[x]==x?x:(uf[x]=uf_find(uf[x])); }
 static void uf_union(int a,int b){ uf[uf_find(a)]=uf_find(b); }
@@ -105,7 +105,7 @@ void gen_kruskals(Grid *g) {
     free(walls);
 }
 
-// ── 4. Aldous-Broder ──────────────────────────────────────────────────────────
+// 4. Aldous-Broder 
 void gen_aldous_broder(Grid *g) {
     grid_init(g);
     int total = ((ROWS-1)/2)*((COLS-1)/2);
@@ -120,7 +120,7 @@ void gen_aldous_broder(Grid *g) {
     }
 }
 
-// ── 5. Braided (Prim's base + extra walls removed for cycles) ─────────────────
+// 5. Braided (Prim's base + extra walls removed for cycles)
 #define BRAID_RATIO 0.42f
 
 void gen_braided(Grid *g) {
@@ -140,14 +140,12 @@ void gen_braided(Grid *g) {
     free(cands);
 }
 
-// ── 6. Wilson's algorithm (loop-erased random walk) ───────────────────────────
-// Produces a UNIFORM spanning tree — every possible perfect maze equally likely.
-// Better texture than Aldous-Broder with similar fairness, and much faster.
+// 6. Wilson's algorithm 
 void gen_wilsons(Grid *g) {
     grid_init(g);
     int total = ((ROWS-1)/2)*((COLS-1)/2);
 
-    // track which ODD-indexed rooms have been added to the maze
+   
     bool in_maze[ROWS][COLS];
     memset(in_maze, 0, sizeof(in_maze));
 
@@ -157,7 +155,7 @@ void gen_wilsons(Grid *g) {
 
     int dr[]={-2,2,0,0}, dc[]={0,0,-2,2};
 
-    // seed: add (1,1) to maze
+    
     g->cells[1][1]=CELL_OPEN;
     in_maze[1][1]=true;
     int done=1;
@@ -170,7 +168,7 @@ void gen_wilsons(Grid *g) {
             sc = 1 + 2*(rand()%((COLS-1)/2));
         } while (in_maze[sr][sc]);
 
-        // perform a loop-erased random walk until we hit the maze
+        
         memset(walk_dir, -1, sizeof(walk_dir));
         int r=sr, c=sc;
 
@@ -182,7 +180,7 @@ void gen_wilsons(Grid *g) {
             r=nr; c=nc2;
         }
 
-        // carve the recorded path from start to maze
+
         r=sr; c=sc;
         while (!in_maze[r][c]) {
             int d=walk_dir[r][c];

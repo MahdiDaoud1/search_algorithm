@@ -3,14 +3,14 @@
 #include <stdio.h>
 #include <string.h>
 
-// ── Palette ───────────────────────────────────────────────────────────────────
+// -----------------------------------Color palette------------------------------------------
 #define C_WALL      CLITERAL(Color){ 28, 28, 48,255}
 #define C_WALL_HL   CLITERAL(Color){ 45, 45, 72,255}
 #define C_OPEN      CLITERAL(Color){ 45, 50, 70,255}
 #define C_VISITED   CLITERAL(Color){ 55,100,190,255}
 #define C_FRONTIER  CLITERAL(Color){130,180,255,255}
 #define C_PATH      CLITERAL(Color){255,210, 50,255}
-// trap border tints (used ONLY when PNG is missing)
+// trap color (used when no png )
 #define C_SPIKE     CLITERAL(Color){210, 40, 40,255}
 #define C_FREEZE    CLITERAL(Color){ 60,205,230,255}
 #define C_TELE      CLITERAL(Color){155, 55,225,255}
@@ -29,10 +29,7 @@
 #define C_POPUP_BG  CLITERAL(Color){ 12, 12, 24,245}
 #define C_POPUP_BD  CLITERAL(Color){ 80,160,255,220}
 
-// ── Textures ──────────────────────────────────────────────────────────────────
-// Index mapping:
-//   2 = CELL_START,  3 = CELL_END
-//   4 = CELL_TRAP_SPIKE .. 9 = CELL_BONUS_COIN
+//  Textures 
 static Texture2D tex[10];
 static bool      tex_ok[10];
 
@@ -46,7 +43,7 @@ static const struct { int idx; const char *path; } TEX_MAP[] = {
     {8, "assets/speed.png"},
     {9, "assets/coin.png"},
 };
-#define N_TEX (int)(sizeof(TEX_MAP)/sizeof(TEX_MAP[0]))
+#define N_TEX (int)(sizeof(TEX_MAP)/sizeof(TEX_MAP[0])) // 8
 
 void render_init(void) {
     memset(tex_ok, 0, sizeof(tex_ok));
@@ -94,7 +91,7 @@ void render_grid(const Grid *g) {
             CellType ct = g->cells[r][c];
             VisState vs = g->vis[r][c];
 
-            // ── 1. Base floor ───────────────────────────────────────────────
+            // 1. Base floor 
             // Walls always get wall colour.
             // Everything else gets the open floor colour — traps have NO background.
             if (ct==CELL_WALL) {
@@ -107,7 +104,7 @@ void render_grid(const Grid *g) {
             // open floor as base for all non-wall cells
             DrawRectangle(x,y,cs,cs,C_OPEN);
 
-            // ── 2. Search overlay ───────────────────────────────────────────
+            // 2. Search overlay 
             if (vs==VIS_VISITED)
                 DrawRectangle(x,y,cs,cs,C_VISITED);
             else if (vs==VIS_FRONTIER)
@@ -115,26 +112,22 @@ void render_grid(const Grid *g) {
             else if (vs==VIS_PATH)
                 DrawRectangle(x,y,cs,cs,CLITERAL(Color){255,210,50,180});
             else if (vs==VIS_EXPLODED) {
-                // bomb crater — orange-tinted open cell so it's clearly visible
+                // exploded color
                 DrawRectangle(x,y,cs,cs,CLITERAL(Color){80,45,10,255});
-                // cracks: two diagonal lines
                 DrawLine(x,y,x+cs,y+cs,CLITERAL(Color){225,105,15,180});
                 DrawLine(x+cs,y,x,y+cs,CLITERAL(Color){225,105,15,120});
             }
 
-            // ── 3. Tile icon ────────────────────────────────────────────────
+            // 3. Tile icon 
             // Draw PNG if available, else a coloured border for trap tiles.
-            // Always draw icons — even over search colours — so you can see
-            // which traps the path hit.
+
             int pad=3;
             if (ct==CELL_START || ct==CELL_END) {
-                // start and end icons always drawn
                 int ti = (ct==CELL_START)?2:3;
                 if (tex_ok[ti])
                     draw_tex(ti, x+pad, y+pad, cs-pad*2, WHITE);
             } else if (ct>=CELL_TRAP_SPIKE && ct<=CELL_BONUS_COIN) {
                 if (tex_ok[ct]) {
-                    // draw icon at full cell size with no background
                     draw_tex(ct, x+pad, y+pad, cs-pad*2, WHITE);
                 } else {
                     // fallback: coloured border only — no filled background
@@ -149,7 +142,7 @@ void render_grid(const Grid *g) {
     }
 }
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
+// ------------------------------ Sidebar ------------------------------------------
 static void lv(int x,int y,const char *lab,const char *val,Color vc){
     DrawTextEx(GetFontDefault(),lab,(Vector2){x,y},13,1,C_DIM);
     DrawTextEx(GetFontDefault(),val,(Vector2){x+148,y},13,1,vc);

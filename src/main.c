@@ -7,12 +7,12 @@
 
 static Grid        g_grid;
 static AppPhase    g_phase    = PHASE_MENU;
-static GenAlgo     g_gen      = GEN_BRAIDED;   // Braided = multi-path, best for trap research
+static GenAlgo     g_gen      = GEN_BRAIDED;   // Braided = multi-path
 static SearchAlgo  g_algo     = ALGO_BFS;
 static SearchCtx  *g_ctx      = NULL;
 static SearchResult g_result;
 static bool        g_searching  = false;
-static bool        g_show_report = false;  // TAB toggles the report popup
+static bool        g_show_report = false;  // TAB / H toggles the report popup
 
 static void do_generate(void);
 static void do_start_search(void);
@@ -32,7 +32,6 @@ int main(void) {
 
     while (!WindowShouldClose()) {
 
-        // ── input ────────────────────────────────────────────────────────────
         // TAB or H — toggle report popup
         if ((IsKeyPressed(KEY_TAB)||IsKeyPressed(KEY_H)) && g_phase==PHASE_DONE)
             g_show_report = !g_show_report;
@@ -52,23 +51,23 @@ int main(void) {
         if (IsKeyPressed(KEY_SIX))   g_gen=GEN_WILSONS;
 
         if (g_phase!=PHASE_SEARCHING) {
-            if (IsKeyPressed(KEY_Q)) g_algo=ALGO_BFS;          // AZERTY: A key
-            if (IsKeyPressed(KEY_W)) g_algo=ALGO_DFS;          // AZERTY: Z key
-            if (IsKeyPressed(KEY_E)) g_algo=ALGO_DIJKSTRA;     // AZERTY: E key
-            if (IsKeyPressed(KEY_R)) g_algo=ALGO_ASTAR;        // AZERTY: R key
+            if (IsKeyPressed(KEY_Q)) g_algo=ALGO_BFS;                // AZERTY: A key
+            if (IsKeyPressed(KEY_W)) g_algo=ALGO_DFS;               // AZERTY: Z key
+            if (IsKeyPressed(KEY_E)) g_algo=ALGO_DIJKSTRA;         // AZERTY: E key
+            if (IsKeyPressed(KEY_R)) g_algo=ALGO_ASTAR;           // AZERTY: R key
             if (IsKeyPressed(KEY_T)) g_algo=ALGO_BIDIR_DIJKSTRA; // AZERTY: T key
         }
         if (IsKeyPressed(KEY_G)) do_generate();
         if (IsKeyPressed(KEY_S)) {
-            if (g_phase==PHASE_PICK_END||g_phase==PHASE_DONE||
+            if (g_phase==PHASE_PICK_END||g_phase==PHASE_DONE|| //do_start check them
                (g_phase==PHASE_PICK_START&&g_grid.startR>=0&&g_grid.endR>=0))
                 do_start_search();
         }
-        if (IsKeyPressed(KEY_X))                               // AZERTY: X key (same)
+        if (IsKeyPressed(KEY_X))                               // AZERTY: X
             if (g_phase==PHASE_SEARCHING||g_phase==PHASE_DONE)
                 do_reset_search();
 
-        // Full reset — KEY_Z is the physical Z key = labeled W on AZERTY
+        // Full reset, AZERTY: W key
         if (IsKeyPressed(KEY_Z) && g_phase!=PHASE_MENU && g_phase!=PHASE_SEARCHING)
             do_full_reset();
 
@@ -76,7 +75,7 @@ int main(void) {
                 &&IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
             handle_click();
 
-        // ── search step ──────────────────────────────────────────────────────
+        // search step
         if (g_phase==PHASE_SEARCHING&&g_ctx) {
             bool running=search_step(g_ctx);
             if (!running) {
@@ -88,7 +87,7 @@ int main(void) {
         }
 
         draw:;
-        // ── draw ─────────────────────────────────────────────────────────────
+        // draw
         BeginDrawing();
         ClearBackground(CLITERAL(Color){15,15,25,255});
         render_grid(&g_grid);

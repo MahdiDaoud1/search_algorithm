@@ -80,7 +80,7 @@ typedef enum {
 } AppPhase;
 
 // ─── Grid ─────────────────────────────────────────────────────────────────────
-#define MAX_CRATERS 30   // 3 bombs × up to 8 walls each = 24 max, 30 is safe margin
+#define MAX_CRATERS 30   // 3 bombs x 8 walls each = 24 +margin = 30 
 
 typedef struct { int r, c; } CraterPos;
 
@@ -98,7 +98,7 @@ typedef struct {
 
 typedef struct {
     CellType type;
-    int      r, c;
+    int      r, c; // positioin of the tile
     int      delta;   // positive = penalty, negative = bonus
 } TileEvent;
 

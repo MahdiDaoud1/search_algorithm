@@ -19,6 +19,7 @@ void grid_clear_search(Grid *g) {
             if (v==VIS_VISITED||v==VIS_FRONTIER||v==VIS_PATH)
                 g->vis[r][c] = VIS_NONE;
             /* leave VIS_EXPLODED so craters remain visible */
+            //! it's being overwritten
         }
     if (g->startR>=0) g->cells[g->startR][g->startC] = CELL_START;
     if (g->endR  >=0) g->cells[g->endR  ][g->endC  ] = CELL_END;
