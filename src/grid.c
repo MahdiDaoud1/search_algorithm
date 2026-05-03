@@ -38,7 +38,7 @@ void grid_full_reset(Grid *g) {
     }
     g->crater_count = 0;
 
-    /* clear start/end back to open, wipe all vis */
+    //wipe all vis 
     for (int r=0;r<ROWS;r++)
         for (int c=0;c<COLS;c++) {
             if (g->cells[r][c]==CELL_START || g->cells[r][c]==CELL_END)
@@ -46,6 +46,6 @@ void grid_full_reset(Grid *g) {
             g->vis[r][c] = VIS_NONE;
         }
 
-    g->startR = g->startC = -1;
-    g->endR   = g->endC   = -1;
+    if (g->startR >= 0) g->cells[g->startR][g->startC] = CELL_START;
+    if (g->endR   >= 0) g->cells[g->endR  ][g->endC  ] = CELL_END;
 }

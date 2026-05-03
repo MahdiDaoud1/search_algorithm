@@ -141,7 +141,12 @@ static void do_full_reset(void) {
     g_show_report=false;
     grid_full_reset(&g_grid);   // undo bombs, clear start/end, wipe vis
     memset(&g_result,0,sizeof(g_result));
-    g_phase=PHASE_PICK_START;
+    if (g_grid.startR>=0 && g_grid.endR>=0)
+        g_phase = PHASE_PICK_START;  // both placed, ready to search
+    else if (g_grid.startR>=0)
+        g_phase = PHASE_PICK_END;    // only start placed
+    else
+        g_phase = PHASE_PICK_START;  // nothing placed
 }
 
 static void do_reset_search(void) {

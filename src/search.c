@@ -352,9 +352,8 @@ bool search_step(SearchCtx *ctx) {
 
                 if (grid->cells[current.row][current.col] == CELL_BONUS_BOMB)
                     ctx->result.walls_opened += bomb_effect(grid, current.row, current.col);
-                if (grid->vis[current.row][current.col] == VIS_NONE)
+               if (grid->cells[current.row][current.col] != CELL_START && grid->cells[current.row][current.col] != CELL_END)
                     grid->vis[current.row][current.col] = VIS_VISITED;
-
                 if (ctx->back_visited[current.row][current.col]) {
                     ctx->meet_row = current.row; ctx->meet_col = current.col;
                     ctx->done = ctx->found = true;
@@ -373,7 +372,8 @@ bool search_step(SearchCtx *ctx) {
                     ctx->cost[nr][nc] = new_cost;
                     Node nb = {nr, nc, current.row, current.col, new_cost, new_cost};
                     generic_heap_insert(&ctx->heap, &nb);
-                    if (grid->vis[nr][nc] == VIS_NONE) grid->vis[nr][nc] = VIS_FRONTIER;
+                    if (grid->cells[nr][nc] != CELL_START && grid->cells[nr][nc] != CELL_END)
+                        grid->vis[nr][nc] = VIS_FRONTIER;
                 }
             }
         }
@@ -391,9 +391,8 @@ bool search_step(SearchCtx *ctx) {
                 ctx->back_parent_col[current.row][current.col] = current.parent_col;
                 ctx->result.visited++;
 
-                if (grid->vis[current.row][current.col] == VIS_NONE)
-                    grid->vis[current.row][current.col] = VIS_FRONTIER;
-
+               if (grid->cells[current.row][current.col] != CELL_START && grid->cells[current.row][current.col] != CELL_END)
+            grid->vis[current.row][current.col] = VIS_VISITED;
                 if (ctx->visited[current.row][current.col]) {
                     ctx->meet_row = current.row; ctx->meet_col = current.col;
                     ctx->done = ctx->found = true;
