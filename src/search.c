@@ -99,9 +99,9 @@ static float manhattan(int row, int col, int goal_row, int goal_col) {
 static float edge_cost(SearchAlgo algo, CellType cell_type) {
     if (algo == ALGO_BFS || algo == ALGO_DFS) return 1.0f;
     int penalty = cell_penalty(cell_type);
-    return 1.0f + (penalty > 0 ? (float)penalty / 15.0f : 0.0f);
+    float ec = 1.0f + (float)penalty / 15.0f;
+    return ec < 0.1f ? 0.1f : ec;  // clamp to avoid zero or negative costs
 }
-
 
 static int bomb_effect(Grid *grid, int row, int col) {
     int dr[] = {-1,-1,-1, 0, 0, 1, 1, 1};
@@ -339,10 +339,10 @@ bool search_step(SearchCtx *ctx) {
         if (generic_heap_size(&ctx->heap) > 0) {
             void *raw = NULL;
             generic_heap_extract(&ctx->heap, &raw);
-            Node current = *(Node *)raw;    // to activate vs code auto comp
+            Node current = *(Node *)raw;
             node_destroy(raw);
 
-            if (!ctx->visited[current.row][current.col] 
+            if (!ctx->visited[current.row][current.col]
                     || current.cost < ctx->cost[current.row][current.col]) {
                 ctx->visited[current.row][current.col] = true;
                 ctx->cost[current.row][current.col] = current.cost;
@@ -352,8 +352,10 @@ bool search_step(SearchCtx *ctx) {
 
                 if (grid->cells[current.row][current.col] == CELL_BONUS_BOMB)
                     ctx->result.walls_opened += bomb_effect(grid, current.row, current.col);
-               if (grid->cells[current.row][current.col] != CELL_START && grid->cells[current.row][current.col] != CELL_END)
+                if (grid->cells[current.row][current.col] != CELL_START &&
+                    grid->cells[current.row][current.col] != CELL_END)
                     grid->vis[current.row][current.col] = VIS_VISITED;
+
                 if (ctx->back_visited[current.row][current.col]) {
                     ctx->meet_row = current.row; ctx->meet_col = current.col;
                     ctx->done = ctx->found = true;
@@ -365,14 +367,14 @@ bool search_step(SearchCtx *ctx) {
                     int nc = current.col + DELTA_COL[d];
                     if (nr < 0||nr >= ROWS||nc < 0||nc >= COLS) continue;
                     if (grid->cells[nr][nc] == CELL_WALL) continue;
-                    if (ctx->visited[nr][nc]) continue;
                     float new_cost = ctx->cost[current.row][current.col]
                                    + edge_cost(ctx->algo, grid->cells[nr][nc]);
                     if (new_cost >= ctx->cost[nr][nc]) continue;
                     ctx->cost[nr][nc] = new_cost;
                     Node nb = {nr, nc, current.row, current.col, new_cost, new_cost};
                     generic_heap_insert(&ctx->heap, &nb);
-                    if (grid->cells[nr][nc] != CELL_START && grid->cells[nr][nc] != CELL_END)
+                    if (grid->cells[nr][nc] != CELL_START &&
+                        grid->cells[nr][nc] != CELL_END)
                         grid->vis[nr][nc] = VIS_FRONTIER;
                 }
             }
@@ -383,6 +385,7 @@ bool search_step(SearchCtx *ctx) {
             generic_heap_extract(&ctx->back_heap, &raw);
             Node current = *(Node *)raw;
             node_destroy(raw);
+
             if (!ctx->back_visited[current.row][current.col]
                     || current.cost < ctx->back_cost[current.row][current.col]) {
                 ctx->back_visited[current.row][current.col] = true;
@@ -391,8 +394,10 @@ bool search_step(SearchCtx *ctx) {
                 ctx->back_parent_col[current.row][current.col] = current.parent_col;
                 ctx->result.visited++;
 
-               if (grid->cells[current.row][current.col] != CELL_START && grid->cells[current.row][current.col] != CELL_END)
-            grid->vis[current.row][current.col] = VIS_VISITED;
+                if (grid->cells[current.row][current.col] != CELL_START &&
+                    grid->cells[current.row][current.col] != CELL_END)
+                    grid->vis[current.row][current.col] = VIS_VISITED;
+
                 if (ctx->visited[current.row][current.col]) {
                     ctx->meet_row = current.row; ctx->meet_col = current.col;
                     ctx->done = ctx->found = true;
@@ -411,6 +416,9 @@ bool search_step(SearchCtx *ctx) {
                     ctx->back_cost[nr][nc] = new_cost;
                     Node nb = {nr, nc, current.row, current.col, new_cost, new_cost};
                     generic_heap_insert(&ctx->back_heap, &nb);
+                    if (grid->cells[nr][nc] != CELL_START &&
+                        grid->cells[nr][nc] != CELL_END)
+                        grid->vis[nr][nc] = VIS_FRONTIER;
                 }
             }
         }
@@ -444,8 +452,8 @@ bool search_step(SearchCtx *ctx) {
             generic_heap_extract(&ctx->heap, &raw);
             current = *(Node *)raw;
             node_destroy(raw);
-            if (ctx->visited[current.row][current.col] && current.cost >= ctx->cost[current.row][current.col])
-                return true;
+            if (ctx->visited[current.row][current.col] &&
+                    current.cost >= ctx->cost[current.row][current.col]) return true;
             ctx->visited[current.row][current.col] = true;
             ctx->cost[current.row][current.col] = current.cost;
         }
@@ -465,6 +473,7 @@ bool search_step(SearchCtx *ctx) {
             trace_path(ctx);
             goto finish;
         }
+
         for (int d = 0; d < 4; d++) {
             int nr = current.row + DELTA_ROW[d];
             int nc = current.col + DELTA_COL[d];
@@ -472,7 +481,7 @@ bool search_step(SearchCtx *ctx) {
             if (grid->cells[nr][nc] == CELL_WALL) continue;
 
             float new_cost = ctx->cost[current.row][current.col]
-                        + edge_cost(ctx->algo, grid->cells[nr][nc]);
+                           + edge_cost(ctx->algo, grid->cells[nr][nc]);
 
             if (ctx->algo != ALGO_BFS && ctx->algo != ALGO_DFS
                     && new_cost >= ctx->cost[nr][nc]) continue;
@@ -499,7 +508,9 @@ bool search_step(SearchCtx *ctx) {
                 if (grid->vis[nr][nc] == VIS_NONE) grid->vis[nr][nc] = VIS_FRONTIER;
             } else {
                 generic_heap_insert(&ctx->heap, &nb);
-                if (grid->vis[nr][nc] == VIS_NONE) grid->vis[nr][nc] = VIS_FRONTIER;
+                if (grid->cells[nr][nc] != CELL_START &&
+                    grid->cells[nr][nc] != CELL_END)
+                    grid->vis[nr][nc] = VIS_FRONTIER;
             }
         }
     }
@@ -515,7 +526,6 @@ finish:
     }
     return !ctx->done;
 }
-
 // ----------------------------------------------------------------------------------
 // Cleanup
 // -----------------------------------------------------------------------
