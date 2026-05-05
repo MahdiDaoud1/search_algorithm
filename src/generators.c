@@ -1,6 +1,7 @@
 #include "maze.h"
 #include <stdlib.h>
 #include <string.h>
+#include "integer_uf.h"
 
 
 static void shuffle4(int d[4]) {
@@ -78,31 +79,47 @@ void gen_prims(Grid *g) {
 }
 
 // 3. Kruskal's 
-static int uf[ROWS*COLS];
-static int uf_find(int x){ return uf[x]==x?x:(uf[x]=uf_find(uf[x])); }
-static void uf_union(int a,int b){ uf[uf_find(a)]=uf_find(b); }
-
 void gen_kruskals(Grid *g) {
     grid_init(g);
+
+    // initialise UF with enough slots for all flat indices (r*COLS)
+    integer_uf_t uf;
+    integer_uf_init(&uf, ROWS * COLS);
+
+    // open all odd-indexed rooms and register them in the UF
     for (int r=1;r<ROWS;r+=2) for (int c=1;c<COLS;c+=2) {
-        g->cells[r][c]=CELL_OPEN; uf[r*COLS+c]=r*COLS+c;
+        g->cells[r][c] = CELL_OPEN;
+        integer_uf_add_element(&uf, r*COLS+c);
     }
-    typedef struct{int r1,c1,r2,c2;}Wall;
+
+    // build list of all walls between adjacent rooms
+    typedef struct { int r1,c1,r2,c2; } Wall;
     Wall *walls = malloc(2*ROWS*COLS*sizeof(Wall));
-    int wn=0;
+    int wn = 0;
     for (int r=1;r<ROWS;r+=2) for (int c=1;c<COLS;c+=2) {
         if (r+2<ROWS) walls[wn++]=(Wall){r,c,r+2,c};
         if (c+2<COLS) walls[wn++]=(Wall){r,c,r,c+2};
     }
-    for (int i=wn-1;i>0;i--){ int j=rand()%(i+1); Wall t=walls[i];walls[i]=walls[j];walls[j]=t; }
+
+    // shuffle walls 
+    for (int i=wn-1;i>0;i--) {
+        int j=rand()%(i+1);
+        Wall t=walls[i]; walls[i]=walls[j]; walls[j]=t;
+    }
+
+    // remove a wall only if the two rooms it separates are not yet connected
     for (int i=0;i<wn;i++) {
-        Wall w=walls[i];
-        if (uf_find(w.r1*COLS+w.c1)!=uf_find(w.r2*COLS+w.c2)) {
-            uf_union(w.r1*COLS+w.c1, w.r2*COLS+w.c2);
-            carve(g, w.r1,w.c1,w.r2,w.c2);
+        Wall w = walls[i];
+        int a = w.r1*COLS+w.c1;
+        int b = w.r2*COLS+w.c2;
+        if (!integer_uf_are_connected(&uf, a, b)) {
+            integer_uf_union(&uf, a, b);
+            carve(g, w.r1, w.c1, w.r2, w.c2);
         }
     }
+
     free(walls);
+    integer_uf_destroy(&uf);
 }
 
 // 4. Aldous-Broder 
@@ -145,30 +162,23 @@ void gen_wilsons(Grid *g) {
     grid_init(g);
     int total = ((ROWS-1)/2)*((COLS-1)/2);
 
-   
     bool in_maze[ROWS][COLS];
     memset(in_maze, 0, sizeof(in_maze));
 
-    // track direction we came from during a walk (for loop erasure)
-    // 0=up 1=down 2=left 3=right, -1=unset
     int walk_dir[ROWS][COLS];
-
     int dr[]={-2,2,0,0}, dc[]={0,0,-2,2};
 
-    
     g->cells[1][1]=CELL_OPEN;
     in_maze[1][1]=true;
     int done=1;
 
     while (done < total) {
-        // pick a random unvisited room as walk start
         int sr, sc;
         do {
             sr = 1 + 2*(rand()%((ROWS-1)/2));
             sc = 1 + 2*(rand()%((COLS-1)/2));
         } while (in_maze[sr][sc]);
 
-        
         memset(walk_dir, -1, sizeof(walk_dir));
         int r=sr, c=sc;
 
@@ -179,7 +189,6 @@ void gen_wilsons(Grid *g) {
             walk_dir[r][c]=d;
             r=nr; c=nc2;
         }
-
 
         r=sr; c=sc;
         while (!in_maze[r][c]) {
