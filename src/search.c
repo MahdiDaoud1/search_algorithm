@@ -181,6 +181,7 @@ static void trace_path(SearchCtx *ctx) {
 }
 
 //for biDir Djiks
+//for biDir Dijks
 static void trace_bidir_path(SearchCtx *ctx) {
     Grid *grid = ctx->grid;
     int mr = ctx->meet_row, mc = ctx->meet_col;
@@ -188,7 +189,8 @@ static void trace_bidir_path(SearchCtx *ctx) {
         traps_hit = 0, bonuses_hit = 0, walls_opened = 0;
     ctx->result.event_count = 0;
 
-    // forward half: meeting point -> start
+    // ── forward half: meeting point → start (exclusive of meeting cell itself,
+    //    it will be handled once below to avoid double-counting) ──────────────
     int row = mr, col = mc;
     while (!(row == grid->startR && col == grid->startC)) {
         if (row < 0) break;
@@ -224,10 +226,11 @@ static void trace_bidir_path(SearchCtx *ctx) {
         row = pr; col = pc; length++;
     }
 
-    // backward half: meeting point -> end
-    row = mr; col = mc;
-    while (!(row == grid->endR && col == grid->endC)) {
-        if (row < 0) break;
+    //  backward half: 
+   
+    row = ctx->back_parent_row[mr][mc];
+    col = ctx->back_parent_col[mr][mc];
+    while (row >= 0 && !(row == grid->endR && col == grid->endC)) {
         CellType cell = grid->cells[row][col];
         if (cell != CELL_START && cell != CELL_END) {
             int delta = cell_penalty(cell);
@@ -263,18 +266,17 @@ static void trace_bidir_path(SearchCtx *ctx) {
     grid->vis[grid->startR][grid->startC] = VIS_NONE;
     grid->vis[grid->endR  ][grid->endC  ] = VIS_NONE;
 
-    ctx->result.pathLen     = length;
-    ctx->result.penalties   = penalties;
-    ctx->result.bonuses     = bonuses;
-    ctx->result.traps_hit   = traps_hit;
-    ctx->result.bonuses_hit = bonuses_hit;
-    ctx->result.walls_opened= walls_opened; 
+    ctx->result.pathLen      = length;
+    ctx->result.penalties    = penalties;
+    ctx->result.bonuses      = bonuses;
+    ctx->result.traps_hit    = traps_hit;
+    ctx->result.bonuses_hit  = bonuses_hit;
+    ctx->result.walls_opened = walls_opened;   // was never assigned before — fixed
 }
-
 //TODO:---------------------------------------------------------------------------------------------
-// ═══════════════════════════════════════════════════════════════════════════════
+//---------------------------------------------------------------------------------
 // search_create
-// ═══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 SearchCtx *search_create(SearchAlgo algo, Grid *grid) {
     SearchCtx *ctx = calloc(1, sizeof(SearchCtx));
     ctx->algo     = algo;
@@ -379,7 +381,6 @@ bool search_step(SearchCtx *ctx) {
                 }
             }
         }
-
         if (generic_heap_size(&ctx->back_heap) > 0) {
             void *raw = NULL;
             generic_heap_extract(&ctx->back_heap, &raw);
@@ -393,6 +394,10 @@ bool search_step(SearchCtx *ctx) {
                 ctx->back_parent_row[current.row][current.col] = current.parent_row;
                 ctx->back_parent_col[current.row][current.col] = current.parent_col;
                 ctx->result.visited++;
+
+                // ── bomb_effect was missing from the backward search — fixed ──
+                if (grid->cells[current.row][current.col] == CELL_BONUS_BOMB)
+                    ctx->result.walls_opened += bomb_effect(grid, current.row, current.col);
 
                 if (grid->cells[current.row][current.col] != CELL_START &&
                     grid->cells[current.row][current.col] != CELL_END)
@@ -422,7 +427,7 @@ bool search_step(SearchCtx *ctx) {
                 }
             }
         }
-
+        
         if (!generic_heap_size(&ctx->heap) && !generic_heap_size(&ctx->back_heap))
             ctx->done = true;
         goto finish;
